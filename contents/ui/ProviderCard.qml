@@ -243,7 +243,7 @@ ColumnLayout {
                 fillColor: card.brandColor
                 expectedPercent: Plasmoid.configuration.showPace && section.modelData.pace
                     ? (Plasmoid.configuration.usageBarsShowUsed ? section.modelData.pace.expectedUsedPercent : 100 - section.modelData.pace.expectedUsedPercent) : -1
-                paceDelta: section.modelData.pace ? section.modelData.pace.deltaPercent : 0
+                paceStage: section.modelData.pace ? section.modelData.pace.stage : "onTrack"
             }
 
             RowLayout {
@@ -278,7 +278,7 @@ ColumnLayout {
             TruncatedLabel {
                 Layout.fillWidth: true
                 visible: text !== ""
-                text: section.modelData.minutes === 10080 ? plasmoidRoot.sessionEstimate(providerId, entry) : ""
+                text: section.modelData.minutes >= 10070 && section.modelData.minutes <= 10090 ? plasmoidRoot.sessionEstimate(providerId, entry) : ""
                 font: Kirigami.Theme.smallFont
                 opacity: 0.75
             }

@@ -70,7 +70,10 @@ function resolve(cli, win, minutes, now, days, provider) {
     // Kimi weekly path and the known Codex/Claude session/weekly capabilities.
     if (!cli && !(minutes === 10080 || ((provider === "codex" || provider === "claude") && minutes === 300))) return null
     if (!p || p.expectedUsedPercent < 3) return null
-    if (p.speedMultiplierToReset == null && fallback) p.speedMultiplierToReset = fallback.speedMultiplierToReset
+    if (p.speedMultiplierToReset == null) {
+        var capacity = cli ? calculate(win, minutes, now, 0) : fallback
+        if (capacity) p.speedMultiplierToReset = capacity.speedMultiplierToReset
+    }
     return p
 }
 function text(p, session, provider) {

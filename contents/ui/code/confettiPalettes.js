@@ -251,4 +251,7 @@ var PALETTES = {
         "#00053D"
     ]
 }
-function forProvider(provider) { return PALETTES[provider] || PALETTES.codex }
+function forProvider(provider) {
+    var aliases = { "alibaba-coding-plan": "alibaba", "alibaba-token-plan": "alibabatokenplan", "azure-openai": "azureopenai", "qwen-cloud": "qwencloud" }
+    return PALETTES[aliases[provider] || provider] || PALETTES.codex
+}

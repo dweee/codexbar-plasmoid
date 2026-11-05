@@ -45,9 +45,9 @@ Window {
             var now = Date.now()
             first.process("claude", harness.entry(now, 90), null, now)
             second.process("claude", harness.entry(now, 90), null, now)
-            if (harness.eventCount !== 2) { console.error("FAIL lease/threshold expected 2, got", harness.eventCount); Qt.exit(1); return }
+            if (harness.eventCount !== 1) { console.error("FAIL lease/threshold expected 1, got", harness.eventCount); Qt.exit(1); return }
             first.process("claude", harness.entry(now + 1000, 90), null, now + 1000)
-            if (harness.eventCount !== 2) { console.error("FAIL repeat dedup"); Qt.exit(1); return }
+            if (harness.eventCount !== 1) { console.error("FAIL repeat dedup"); Qt.exit(1); return }
             overlay.show("codex", "")
             console.log("PARITY SMOKE: reducers/persistence/lease passed; overlay requested on", Qt.application.screens.length, "screens")
         }
@@ -80,5 +80,8 @@ Window {
             Qt.quit()
         }
     }
-    Component.onCompleted: objectName = String(Date.now())
+    Component.onCompleted: {
+        objectName = String(Date.now())
+        if (Qt.application.arguments.indexOf("--fallback") >= 0) overlay.layerShellAvailable = false
+    }
 }

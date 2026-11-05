@@ -848,6 +848,11 @@ PlasmoidItem {
             // enabled in its own config; only this provider's entries count.
             var entries = Catalog.entriesForProvider(parsed, req.p)
             var cliError = Catalog.errorForProvider(parsed, req.p)
+            d.parityError = null
+            if (Array.isArray(parsed)) {
+                var failedEntry = parsed.filter(function (item) { return item.provider === req.p && item.error })
+                if (failedEntry.length) d.parityError = failedEntry[0].error
+            }
             if (entries.length > 0 && entries[0].usage) {
                 d.entry = entries[0]
                 d.entries = entries
@@ -918,8 +923,19 @@ PlasmoidItem {
 
     function notifyChanges(p) {
         var d = usageData[p]
-        if (d && !(d.entries && d.entries.length > 1))
-            parity.process(p, d.entry || { account: "" }, d.error ? { message: d.error } : null, Date.now())
+        if (d) {
+            var entries = d.entries && d.entries.length ? d.entries : [d.entry || { account: "" }]
+            var counts = {}
+            entries.forEach(function (entry) {
+                var owner = parity.owner(entry)
+                counts[owner] = (counts[owner] || 0) + 1
+            })
+            entries.forEach(function (entry) {
+                var owner = parity.owner(entry)
+                if (entries.length === 1 || (owner && counts[owner] === 1))
+                    parity.process(p, entry, d.error ? d.parityError || { message: d.error } : null, Date.now())
+            })
+        }
         var row = notificationRow(p)
         var result = Notifications.transition(notificationState, p, row, {
             threshold: Plasmoid.configuration.notifyThreshold,

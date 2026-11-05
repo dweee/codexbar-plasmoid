@@ -219,6 +219,13 @@ KCM.SimpleKCM {
             currentIndex: page.cfg_paceWorkDays === 5 ? 1 : page.cfg_paceWorkDays === 6 ? 2 : 0
             onActivated: page.cfg_paceWorkDays = [0, 5, 6][currentIndex]
         }
+        QQC2.Label {
+            text: i18n("Work days apply to local pace calculations and session-quota estimates. Pace supplied by the CLI keeps the CLI's own work-day settings.")
+            wrapMode: Text.WordWrap
+            Layout.maximumWidth: page.hintWidth
+            opacity: 0.7
+            font: Kirigami.Theme.smallFont
+        }
         Item { Kirigami.FormData.isSection: true }
 
         QQC2.TextField {

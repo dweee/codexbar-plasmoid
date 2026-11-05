@@ -35,7 +35,7 @@ Item {
             }
             onLoaded: {
                 item.screen = modelData
-                item.palette = Palettes.forProvider(manager.provider)
+                item.particlePalette = Palettes.forProvider(manager.provider)
                 item.message = manager.message
                 var point = manager.originItem ? manager.originItem.mapToGlobal(manager.originItem.width / 2, manager.originItem.height / 2) : null
                 item.origin = point && point.x >= modelData.virtualX && point.x <= modelData.virtualX + modelData.width

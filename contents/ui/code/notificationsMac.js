@@ -25,10 +25,24 @@ function credential(previous, error, freshSuccess, enabled) {
     var fire = enabled && authenticationFailure(error) && !active
     return { state: active || fire, fire: fire }
 }
-function creditExpiry(previous, credits, now) {
+function creditExpiry(previous, credits, now, hash, summaryEnabled, countdownEnabled) {
     var list = (credits || []).filter(function (c) { var t = Date.parse(c.expires_at); return c.status === "available" && t > now && t - now <= 259200000 })
-    var fingerprint = list.map(function (c) { return c.id + ":" + c.expires_at }).sort().join("|")
-    var receipts = (previous || []).slice(-64), fire = !!fingerprint && receipts.indexOf(fingerprint) < 0
-    if (fire) receipts.push(fingerprint)
-    return { state: receipts.slice(-64), fire: fire, expiries: list.map(function (c) { return c.expires_at }).sort() }
+    function fingerprint(items, threshold) {
+        var material = items.map(function (c) { return c.id + "\u001f" + Date.parse(c.expires_at) / 1000 }).sort().join("\u001e")
+        if (threshold != null) material += "\u001f" + threshold
+        return hash(material)
+    }
+    var receipts = (previous || []).slice(-192), summary = list.length && summaryEnabled !== false && receipts.indexOf(fingerprint(list, null)) < 0
+    var reminders = []
+    if (countdownEnabled) list.forEach(function (c) {
+        var remaining = (Date.parse(c.expires_at) - now) / 1000
+        var threshold = remaining <= 3600 ? 3600 : remaining <= 86400 ? 86400 : null
+        if (threshold !== null && receipts.indexOf(fingerprint([c], threshold)) < 0) {
+            reminders.push(c)
+            ;[86400, 3600].forEach(function (stage) { var f = fingerprint([c], stage); if (stage >= threshold && receipts.indexOf(f) < 0) receipts.push(f) })
+        }
+    })
+    if (summary) receipts.push(fingerprint(list, null))
+    var selected = summary ? list : reminders
+    return { state: receipts.slice(-192), fire: selected.length > 0, expiries: selected.map(function (c) { return c.expires_at }).sort() }
 }

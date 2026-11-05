@@ -52,7 +52,7 @@ function estimate(session, weekly, currentReset, now, limit) {
 }
 function forecast(session, weekly, burn, now, remainingSeconds) {
     if (!session || !weekly || session.isSyntheticPlaceholder || weekly.isSyntheticPlaceholder
-        || session.windowMinutes !== 300 || weekly.windowMinutes !== 10080 || !burn || burn.sampleCount < 3
+        || !(session.windowMinutes >= 295 && session.windowMinutes <= 305) || !(weekly.windowMinutes >= 10070 && weekly.windowMinutes <= 10090) || !burn || burn.sampleCount < 3
         || !(burn.medianWeeklyPercentPerWindow > 0) || !isFinite(burn.medianWeeklyPercentPerWindow)
         || !isFinite(weekly.usedPercent) || weekly.usedPercent < 0 || weekly.usedPercent >= 100) return null
     var sr = session.resetsAt ? Date.parse(session.resetsAt) : null, wr = Date.parse(weekly.resetsAt)
@@ -60,11 +60,17 @@ function forecast(session, weekly, burn, now, remainingSeconds) {
     if (!(wr > now && wr - now <= 604920000)) return null
     var available = (remainingSeconds === undefined ? (wr - now) / 1000 : remainingSeconds) / 18000
     return { estimatedWindowsToExhaustWeekly: (100 - weekly.usedPercent) / burn.medianWeeklyPercentPerWindow,
-        windowsUntilReset: Math.floor(available), availableWindowsUntilReset: available, sampleCount: burn.sampleCount }
+        windowsUntilReset: Math.floor(available), availableWindowsUntilReset: available, sampleCount: burn.sampleCount,
+        weeklyResetsAt: wr, weeklyUsedPercent: weekly.usedPercent }
 }
 function text(f) {
     if (!f) return ""
     var n = Math.round(Math.min(1000000, f.estimatedWindowsToExhaustWeekly) * 10) / 10
     return "Est. " + n.toLocaleString(undefined, { maximumFractionDigits: 1 }) + " session quota" + (n > 0 && n <= 1 ? "" : "s") + " left · "
         + f.windowsUntilReset + " window" + (f.windowsUntilReset === 1 ? "" : "s") + " until reset"
+}
+
+function applies(f, weekly, now) {
+    return !!(f && weekly && Date.parse(weekly.resetsAt) > now && Math.abs(Date.parse(weekly.resetsAt) - f.weeklyResetsAt) < 120000
+        && Math.abs(weekly.usedPercent - f.weeklyUsedPercent) < 0.001)
 }

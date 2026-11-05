@@ -17,7 +17,7 @@ function threshold(previous, o, thresholds) {
 }
 function session(previous, o, enabled) {
     var p = previous, depleted = o.remaining <= 0.0001
-    var validBoundary = o.resetBoundary > Math.max(o.observedAt, o.now) && o.resetBoundary - o.observedAt <= 21720000 ? o.resetBoundary : null
+    var validBoundary = o.resetBoundary > Math.max(o.observedAt, o.now) ? o.resetBoundary : null
     var s = { remaining: o.remaining, source: o.source, observedAt: o.observedAt, trustedResetBoundary: validBoundary, pending: null }
     if (!p) return { state: s, kind: enabled && depleted ? "depleted" : null }
     if (p.source !== o.source) return { state: s, kind: null }
@@ -25,6 +25,7 @@ function session(previous, o, enabled) {
     var wasDepleted = p.remaining <= 0.0001
     var kind = !wasDepleted && depleted ? "depleted" : wasDepleted && !depleted ? "restored" : null
     if (o.provider === "codex") {
+        if (p.trustedResetBoundary != null && !(validBoundary != null && validBoundary - p.trustedResetBoundary >= 120000)) s.trustedResetBoundary = p.trustedResetBoundary
         if ((wasDepleted && depleted) || (p.trustedResetBoundary != null && (o.now < p.trustedResetBoundary || o.observedAt < p.trustedResetBoundary))) s.trustedResetBoundary = p.trustedResetBoundary
         if (enabled && kind === "restored") {
             var tooSoon = p.trustedResetBoundary != null && (o.now < p.trustedResetBoundary || o.observedAt < p.trustedResetBoundary)

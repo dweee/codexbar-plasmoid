@@ -3,7 +3,7 @@ import "code/confetti.js" as Firework
 
 Canvas {
     id: canvas
-    property var palette: ["#736BD4", "#97A9F7", "#CFD4F7"]
+    property var particlePalette: ["#736BD4", "#97A9F7", "#CFD4F7"]
     property point origin: Qt.point(width - 28, 8)
     property var particles: []
     property var launches: []
@@ -26,7 +26,7 @@ Canvas {
             canvas.previous = now
             while (canvas.launches.length && canvas.launches[0].at <= elapsed)
                 canvas.particles.push(Firework.tracer(canvas.launches.shift(), canvas.scale))
-            canvas.particles = Firework.step(canvas.particles, dt, canvas.scale, canvas.palette)
+            canvas.particles = Firework.step(canvas.particles, dt, canvas.scale, canvas.particlePalette)
             canvas.requestPaint()
             if (now - canvas.started >= Firework.LIFETIME) frames.stop()
         }
@@ -39,7 +39,8 @@ Canvas {
             ctx.globalAlpha = p.tracer ? 1 : Math.min(1, (p.life - p.age) / 1.2)
             ctx.fillStyle = p.color
             var growth = p.size + ((p.tracer ? 0.4 : 0.94) - p.size) * p.age / p.life
-            ctx.scale(growth, growth)
+            ctx.scale(growth, growth * (p.tracer ? 1.3 : 0.82))
+            if (p.tracer) { ctx.shadowColor = "white"; ctx.shadowBlur = 1 }
             if (p.tracer || p.shape === 1) {
                 var r = p.tracer ? 3 : 4.5
                 ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill()

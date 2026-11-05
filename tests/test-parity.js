@@ -3,11 +3,14 @@
 // persistence/account-safety regressions. No Plasma installation is needed.
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
+const hash = text => require('node:crypto').createHash('sha256').update(text).digest('hex')
 const vm = require('node:vm')
 function load(name) {
     const context = { console }
+    let source = fs.readFileSync(`contents/ui/code/${name}.js`, 'utf8')
+    source = source.replace(/^\.import "([^"]+)\.js" as (\w+)$/mg, (_, dependency, alias) => { context[alias] = load(dependency); return '' })
     vm.createContext(context)
-    vm.runInContext(fs.readFileSync(`contents/ui/code/${name}.js`, 'utf8').replace(/^\.pragma library$/m, ''), context)
+    vm.runInContext(source.replace(/^\.pragma library$/m, ''), context)
     return context
 }
 const P = load('pace'), E = load('sessionEquivalent'), H = load('history')
@@ -196,9 +199,9 @@ test('Credential episodes: clear auth signal only, once per episode, fresh recov
 })
 test('Codex credits: three-day cutoff and persistent inventory dedup', () => {
     const credits=[{id:'one',status:'available',expires_at:iso(day)},{id:'two',status:'available',expires_at:iso(4*day)}]
-    let r=N.creditExpiry(null,credits,0);assert.equal(r.fire,true);assert.equal(r.expiries.length,1)
-    r=N.creditExpiry(plain(r.state),credits,0);assert.equal(r.fire,false)
-    assert.equal(N.creditExpiry(null,[{id:'expired',status:'available',expires_at:iso(-1)}],0).fire,false)
+    let r=N.creditExpiry(null,credits,0,hash);assert.equal(r.fire,true);assert.equal(r.expiries.length,1)
+    r=N.creditExpiry(plain(r.state),credits,0,hash);assert.equal(r.fire,false)
+    assert.equal(N.creditExpiry(null,[{id:'expired',status:'available',expires_at:iso(-1)}],0,hash).fire,false)
 })
 test('ScreenConfetti: 48 tracers, paired phases, 42 fragments and eight-second explosion life', () => {
     const launches=C.launches(100,100)
@@ -208,5 +211,56 @@ test('ScreenConfetti: 48 tracers, paired phases, 42 fragments and eight-second e
     const p=C.tracer(launches[0],650), fragments=C.step([p],1,650,['#abc'])
     assert.equal(fragments.length,42);assert.ok(fragments.every(x=>x.life===8))
     assert.equal(C.step(fragments,9,650,['#abc']).length,0)
+})
+test('Parity coordinator: account hashes, paired history, source/plan and snapshot guards', () => {
+    const A=load('parity'), now=1900000000000
+    const opts={quotaWarningNotificationsEnabled:true,quotaWarningSessionEnabled:true,quotaWarningWeeklyEnabled:true,
+        quotaWarningSessionThresholds:'50,20',quotaWarningWeeklyThresholds:'50,20',sessionQuotaNotificationsEnabled:true,
+        limitResetNotificationsEnabled:true,confettiMode:'both',paceWorkDays:0,showOptionalCreditsAndExtraUsage:true}
+    const entry=(account,used,time,source='oauth')=>({provider:'codex',source,usage:{identity:{accountID:account,loginMethod:'plus'},updatedAt:iso(time),
+        primary:window(used,300,time+hour),secondary:window(40,10080,time+day)}})
+    const first=entry('private-account-a',90,now), second=entry('private-account-b',90,now)
+    assert.notEqual(A.owner(first,hash),A.owner(second,hash))
+    let r=A.reduce(null,'codex',first,null,now,opts,hash)
+    assert.equal(r.events.length,1);assert.equal(r.events[0].kind,'low')
+    assert.equal(r.state.history.session[0].capturedAt,r.state.history.weekly[0].capturedAt)
+    assert.ok(!JSON.stringify(r.state).includes('private-account-a'))
+    assert.ok(!JSON.stringify(r.state).includes('oauth'))
+    r=A.reduce(r.state,'codex',first,null,now+1,opts,hash);assert.equal(r.events.length,0)
+    r=A.reduce(r.state,'codex',entry('private-account-a',90,now+1000,'web'),null,now+1000,opts,hash)
+    assert.equal(r.events.length,0);assert.equal(r.state.history.session.length,1)
+    const anonymous=entry('',10,now)
+    r=A.reduce(null,'codex',anonymous,null,now,opts,hash);assert.equal(r.state.history,undefined)
+    const stale={...first,source:'cache'}
+    r=A.reduce(null,'codex',stale,null,now,opts,hash);assert.equal(r.events.length,0)
+})
+test('CodexResetCreditExpiryNotifierTests: opaque fingerprint, 1d/1h countdowns and receipts', () => {
+    const expiry=1900000000000, credits=[{id:'private-credit-id',status:'available',expires_at:iso(expiry)}]
+    let r=N.creditExpiry(null,credits,expiry-3*day,hash,true,false)
+    assert.equal(r.fire,true);assert.equal(r.state[0].length,64);assert.ok(!r.state[0].includes('private-credit-id'))
+    let receipts=r.state, posts=0
+    for(const remaining of [86400,86300,43200,3600,3599,1800,600,0,-1]) {
+        r=N.creditExpiry(plain(receipts),credits,expiry-remaining*1000,hash,true,true)
+        if(r.fire) posts++
+        receipts=r.state
+    }
+    assert.equal(posts,2)
+})
+test('Provider lane rules: known usage, balances, Claude scoped extras and Cursor weekly', () => {
+    const A=load('parity'), now=1900000000000
+    const entry={usage:{primary:window(80,10080,now+day),secondary:null,extraRateWindows:[
+        {id:'claude-weekly-scoped-opus',title:'Opus',window:window(90,10080,now+day)},
+        {id:'claude-weekly-scoped-unknown',usageKnown:false,window:window(100,10080,now+day)}]}}
+    assert.equal(A.warningWindows(entry,'claude').length,1)
+    assert.equal(A.warningWindows(entry,'claude')[0].label,'Opus')
+    assert.equal(A.warningWindows(entry,'cursor')[0].lane,'weekly')
+    assert.equal(A.warningWindows(entry,'mimo').length,0)
+    assert.equal(A.lanes(entry,'qoder').length,0)
+    assert.equal(A.lanes({usage:{primary:{usedPercent:NaN,windowMinutes:300}}},'codex').length,0)
+    assert.equal(A.lanes({usage:{primary:{usedPercent:20}}},'claude')[0].resetEligible,false)
+})
+test('SHA-256 fingerprints: standard and Unicode vectors match Node crypto', () => {
+    const S=load('hash')
+    for (const text of ['', 'abc', 'provider/account:日本語🙂', 'a'.repeat(1000)]) assert.equal(S.sha256(text), hash(text))
 })
 console.log(`${cases} macOS parity behavior groups passed`)

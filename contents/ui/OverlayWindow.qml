@@ -6,7 +6,7 @@ Window {
     id: overlay
     color: "transparent"
     flags: Qt.WindowTransparentForInput | Qt.WindowDoesNotAcceptFocus | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
-    property var palette: []
+    property var particlePalette: []
     property point origin: Qt.point(width - 28, 8)
     property string message: ""
     width: screen ? screen.width : 1920
@@ -17,7 +17,7 @@ Window {
     ConfettiCanvas {
         id: fireworks
         anchors.fill: parent
-        palette: overlay.palette
+        particlePalette: overlay.particlePalette
         origin: overlay.origin
         visible: !overlay.message
     }

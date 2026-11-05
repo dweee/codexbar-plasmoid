@@ -21,6 +21,7 @@ KCM.SimpleKCM {
     property alias cfg_respectReducedMotion: respectReducedMotion.checked
     property alias cfg_quotaWarningSessionThresholds: thresholdsSession.text
     property alias cfg_quotaWarningWeeklyThresholds: thresholdsWeekly.text
+    property alias cfg_showOptionalCreditsAndExtraUsage: creditSummaries.checked
     property string cfg_confettiMode
     property int cfg_testConfettiSerial
     property int cfg_testNotificationSerial
@@ -30,6 +31,7 @@ KCM.SimpleKCM {
         QQC2.CheckBox { id: quotaWarningNotificationsEnabled; text: i18n("Threshold warnings") }
         QQC2.CheckBox { id: predictivePaceWarningNotificationsEnabled; text: i18n("Pace warnings") }
         QQC2.CheckBox { id: limitResetNotificationsEnabled; text: i18n("Limit reset notifications") }
+        QQC2.CheckBox { id: creditSummaries; text: i18n("Reset credit expiry summaries") }
         QQC2.CheckBox { id: codexResetCreditExpiryNotificationsEnabled; text: i18n("Codex reset credit expiry") }
         QQC2.CheckBox { id: upcomingResetNotificationsEnabled; text: i18n("Upcoming reset warnings") }
         QQC2.CheckBox { id: quotaWarningSessionEnabled; text: i18n("Session warnings") }
@@ -57,10 +59,12 @@ KCM.SimpleKCM {
             onActivated: page.cfg_confettiMode = ["off", "session", "weekly", "both"][currentIndex]
         }
         QQC2.Button {
+            objectName: "testConfettiButton"
             text: i18n("Test confetti")
             onClicked: page.cfg_testConfettiSerial++
         }
         QQC2.Button {
+            objectName: "testNotificationButton"
             text: i18n("Send test notification")
             onClicked: page.cfg_testNotificationSerial++
         }
