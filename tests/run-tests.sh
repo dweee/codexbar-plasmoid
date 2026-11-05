@@ -17,3 +17,5 @@ node tests/test-provider-overrides.js
 node tests/test-config-providers.js
 node tests/test-usage-probes.js
 node tests/test-notifications.js
+
+node tests/test-parity.js

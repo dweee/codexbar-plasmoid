@@ -4,6 +4,7 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
 import "code/catalog.js" as Catalog
+import "code/pace.js" as Pace
 
 // The per-provider card: header, rate-window sections with progress bars,
 // credits, cost and status — mirrors CodexBar's menu card.
@@ -43,8 +44,7 @@ ColumnLayout {
                 title: Catalog.slotTitle(providerId, slot, minutes),
                 win: w,
                 minutes: minutes,
-                pace: minutes === 10080 && entry.pace && entry.pace.secondary
-                      ? entry.pace.secondary : null
+                pace: Pace.resolve(entry.pace && entry.pace[slot], w, minutes, plasmoidRoot.nowMs, Plasmoid.configuration.paceWorkDays, providerId)
             })
         }
         // Kimi's transport slots are inverted. Keep legacy ordering for every
@@ -241,6 +241,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 percent: Catalog.windowBarFill(section.modelData.win, Plasmoid.configuration.usageBarsShowUsed)
                 fillColor: card.brandColor
+                expectedPercent: Plasmoid.configuration.showPace && section.modelData.pace
+                    ? (Plasmoid.configuration.usageBarsShowUsed ? section.modelData.pace.expectedUsedPercent : 100 - section.modelData.pace.expectedUsedPercent) : -1
+                paceStage: section.modelData.pace ? section.modelData.pace.stage : "onTrack"
             }
 
             RowLayout {
@@ -265,12 +268,19 @@ ColumnLayout {
 
             TruncatedLabel {
                 visible: text !== ""
-                text: Catalog.paceLine(section.modelData.pace, section.modelData.win,
-                                       section.modelData.minutes, plasmoidRoot.nowMs, providerId)
+                text: Plasmoid.configuration.showPace ? Pace.text(section.modelData.pace, section.modelData.minutes > 0 && section.modelData.minutes <= 360, providerId) : ""
                 opacity: 0.55
                 font: Kirigami.Theme.smallFont
                 Layout.fillWidth: true
                 elide: Text.ElideRight
+            }
+
+            TruncatedLabel {
+                Layout.fillWidth: true
+                visible: text !== ""
+                text: section.modelData.minutes >= 10070 && section.modelData.minutes <= 10090 ? plasmoidRoot.sessionEstimate(providerId, entry) : ""
+                font: Kirigami.Theme.smallFont
+                opacity: 0.75
             }
 
             Item { Layout.preferredHeight: Kirigami.Units.smallSpacing }

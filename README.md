@@ -220,3 +220,16 @@ Menu bar animations (blink/wiggle), WidgetKit widgets, cost-history and detail-s
 ## 🙏 Credits & license
 
 MIT, see [LICENSE](LICENSE). This is an independent community port; all credit for the concept, the design and the CLI goes to [Peter Steinberger's CodexBar](https://github.com/steipete/CodexBar). The provider icon SVGs are taken from the upstream repository (MIT). Upstream also ships a standalone [Linux desktop app](https://github.com/steipete/CodexBar/blob/main/Integrations/Linux/README.md) if you prefer a tray application over a Plasma widget.
+
+### macOS usage parity (0.7.0-dave.1)
+
+The development fork adds session pace and expected-usage markers, learned
+session-quota estimates from account-scoped local history, reset fireworks,
+and a Notifications settings page with threshold, depleted/restored, reset,
+predictive, upcoming-reset, credential and reset-credit warnings. Confetti and
+most warnings are opt-in; session depleted/restored remains on by default.
+Estimates appear after at least three completed session burns have been observed.
+
+See [macOS parity](docs/MACOS_PARITY.md) for the source map, defaults, persistence,
+validation commands, platform differences and follow-ups. Settings test requests
+run when you click Apply. No CLI or live-panel changes are required.

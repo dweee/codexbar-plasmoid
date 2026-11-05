@@ -8,13 +8,13 @@
         ],
         "BugReportUrl": "https://github.com/psimaker/codexbar-plasmoid/issues",
         "Category": "System Information",
-        "Description": "AI coding provider usage in your panel — a Plasma port of CodexBar",
-        "Description[de]": "KI-Provider-Nutzungslimits im Panel — eine Plasma-Portierung von CodexBar",
+        "Description": "AI coding provider usage in your panel \u2014 a Plasma port of CodexBar",
+        "Description[de]": "KI-Provider-Nutzungslimits im Panel \u2014 eine Plasma-Portierung von CodexBar",
         "Icon": "view-statistics-symbolic",
         "Id": "com.github.psimaker.codexbar",
         "License": "MIT",
         "Name": "CodexBar",
-        "Version": "0.7.0",
+        "Version": "0.7.0-dave.1",
         "Website": "https://github.com/psimaker/codexbar-plasmoid"
     },
     "X-Plasma-API-Minimum-Version": "6.0"
