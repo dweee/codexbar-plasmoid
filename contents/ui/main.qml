@@ -917,10 +917,13 @@ PlasmoidItem {
     }
 
     function notifyChanges(p) {
+        var d = usageData[p]
+        if (d && !(d.entries && d.entries.length > 1))
+            parity.process(p, d.entry || { account: "" }, d.error ? { message: d.error } : null, Date.now())
         var row = notificationRow(p)
         var result = Notifications.transition(notificationState, p, row, {
             threshold: Plasmoid.configuration.notifyThreshold,
-            quota: Plasmoid.configuration.notifyQuota,
+            quota: false,
             status: Plasmoid.configuration.notifyStatus
         })
         notificationState = result.state
@@ -940,8 +943,9 @@ PlasmoidItem {
 
     function sendNotification(event, row) {
         var notification = notificationComponent.createObject(root, {
-            title: Catalog.meta(event.provider).name,
-            text: notificationText(event, row)
+            title: event.title || Catalog.meta(event.provider).name,
+            text: event.body || notificationText(event, row),
+            hints: { "suppress-sound": !Plasmoid.configuration.quotaWarningSoundEnabled }
         })
         if (notification)
             notification.sendEvent()
@@ -954,6 +958,37 @@ PlasmoidItem {
             eventId: "notification"
             iconName: Plasmoid.icon
             autoDelete: true
+        }
+    }
+
+    ParityStore {
+        id: parity
+        options: Plasmoid.configuration
+        onEventReady: function (event) {
+            if (event.kind === "confetti") {
+                overlays.show(event.provider, "")
+            } else {
+                root.sendNotification(event, {})
+                if (Plasmoid.configuration.quotaWarningOnScreenAlertEnabled && (event.kind === "low" || event.kind === "predictive"))
+                    overlays.show(event.provider, event.title + "\n" + event.body)
+            }
+        }
+    }
+    OverlayManager {
+        id: overlays
+        originItem: root
+        respectReducedMotion: Plasmoid.configuration.respectReducedMotion
+    }
+    function sessionEstimate(provider, entry) {
+        return parity.estimateText(provider, entry)
+    }
+    Connections {
+        target: Plasmoid.configuration
+        function onTestConfettiSerialChanged() {
+            if (root.componentReady) overlays.show("codex", "")
+        }
+        function onTestNotificationSerialChanged() {
+            if (root.componentReady) root.sendNotification({ provider: "codex", title: i18n("CodexBar test notification"), body: i18n("Notifications are working.") }, {})
         }
     }
 
@@ -1021,6 +1056,15 @@ PlasmoidItem {
     }
 
     Component.onCompleted: {
+        if (!Plasmoid.configuration.notificationsMigrated) {
+            if (Plasmoid.configuration.notifyQuota) {
+                Plasmoid.configuration.quotaWarningNotificationsEnabled = true
+                Plasmoid.configuration.quotaWarningSessionThresholds = String(Plasmoid.configuration.notifyThreshold)
+                Plasmoid.configuration.quotaWarningWeeklyThresholds = String(Plasmoid.configuration.notifyThreshold)
+                Plasmoid.configuration.limitResetNotificationsEnabled = true
+            }
+            Plasmoid.configuration.notificationsMigrated = true
+        }
         componentReady = true
         currentTab = defaultTab()
         deferAutomaticCostScans()
