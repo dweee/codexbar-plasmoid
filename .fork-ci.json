@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "upstream": "psimaker/codexbar-plasmoid",
+  "branch": "main",
+  "track": "branch",
+  "author": {
+    "name": "dave",
+    "email": "git@d.monke.fail"
+  },
+  "required_paths": [
+    "flake.nix",
+    "flake.lock"
+  ],
+  "protected_paths": [
+    "flake.nix",
+    "flake.lock",
+    "nix/**",
+    "ci/**"
+  ],
+  "matrix": [
+    {
+      "system": "x86_64-linux",
+      "packages": [
+        "default"
+      ],
+      "checks": [
+        "plasmoid"
+      ],
+      "tests": []
+    }
+  ]
+}
