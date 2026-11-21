@@ -110,3 +110,4 @@ parallel
 claudeplatform
 munito
 traecn
+googledeveloper

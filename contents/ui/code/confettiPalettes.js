@@ -102,6 +102,11 @@ var PALETTES = {
         "#A142F4",
         "#D96570"
     ],
+    "googledeveloper": [
+        "#5B8DEF",
+        "#A8C7FA",
+        "#1F1F1F"
+    ],
     "grok": [
         "#000000",
         "#868686",

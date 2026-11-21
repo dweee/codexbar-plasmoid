@@ -114,7 +114,8 @@ var PROVIDERS = {
     "parallel":     { name: "Parallel",           color: "#1D1C1A", dashboard: "https://platform.parallel.ai", status: "", icon: "ProviderIcon-parallel.svg", minCli: "0.75.0" },
     "claudeplatform": { name: "Claude Platform",    color: "#CC7C5E", dashboard: "https://platform.claude.com/settings/billing", status: "https://status.claude.com/", icon: "ProviderIcon-claudeplatform.svg", minCli: "0.76.0" },
     "munito":       { name: "Munito",             color: "#702CF6", dashboard: "https://console.munito.ai", status: "", icon: "ProviderIcon-munito.svg", minCli: "0.77.0" },
-    "traecn":       { name: "Trae CN",            color: "#4D7CFE", dashboard: "https://www.trae.cn/dashboard#usage", status: "", icon: "ProviderIcon-traecn.svg", minCli: "0.80.0" }
+    "traecn":       { name: "Trae CN",            color: "#4D7CFE", dashboard: "https://www.trae.cn/dashboard#usage", status: "", icon: "ProviderIcon-traecn.svg", minCli: "0.80.0" },
+    "googledeveloper": { name: "Google Developer Program", color: "#5B8DEF", dashboard: "https://me.developers.google.com/benefits", status: "", icon: "ProviderIcon-googledeveloper.svg", minCli: "0.85.0" }
 }
 
 // Providers whose local logs the `codexbar cost` command can price.
