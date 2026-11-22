@@ -103,23 +103,36 @@ class ScreenshotChecks(unittest.TestCase):
             with self.subTest(error=error):
                 self.assertEqual(capture.qml_errors(system + "\n" + error, "/tmp/pkg"), [error])
 
-    def test_general_requires_the_new_notification_controls(self):
+    def test_general_requires_the_notifications_tab(self):
         self.report.update({
-            "kind": "general", "paths": ["", "", ""], "notifications": [False, False, 10],
+            "kind": "general", "paths": ["", "", ""],
             "texts": ["Refresh interval:", "Panel display:", "Usage bars fill:", "codexbar CLI path:",
                       "Adapter executable path:"],
         })
         with self.assertRaisesRegex(ValueError, "Missing visible text: Notifications"):
             capture.validate(self.report, "settings-general")
-        self.report["texts"].extend(["Notifications:", "When a quota runs low or resets", "Low below",
-                                     "% left", "When a provider's status changes"])
+        self.report["texts"].append("Notifications")
         capture.validate(self.report, "settings-general")
         self.report["clipped"] = ["Adapter executable path:"]
         with self.assertRaisesRegex(ValueError, "Clipped"):
             capture.validate(self.report, "settings-general")
 
+    def test_notifications_requires_default_controls(self):
+        self.report.update({
+            "kind": "notifications",
+            "notifications": {"thresholdWarnings": False, "statusChanges": False,
+                              "sessionThresholds": "50,20", "weeklyThresholds": "50,20"},
+            "texts": ["Threshold warnings", "Session thresholds (% remaining):",
+                      "Weekly thresholds (% remaining):", "When the provider service status changes"],
+        })
+        capture.validate(self.report, "settings-notifications")
+        self.report["notifications"]["statusChanges"] = True
+        with self.assertRaisesRegex(ValueError, "Notifications must show their default settings"):
+            capture.validate(self.report, "settings-notifications")
+
     def test_observer_changes_only_disposable_copies(self):
-        names = ["CompactBar.qml", "FullView.qml", "CliSetupCard.qml", "configGeneral.qml", "configProviders.qml"]
+        names = ["CompactBar.qml", "FullView.qml", "CliSetupCard.qml", "configGeneral.qml",
+                 "configNotifications.qml", "configProviders.qml"]
         originals = {name: (REPO / "contents/ui" / name).read_text() for name in names}
         with tempfile.TemporaryDirectory() as directory:
             ui = Path(directory) / "contents/ui"

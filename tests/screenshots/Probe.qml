@@ -143,9 +143,15 @@ Timer {
             result.enabledOnly = kind === "providers" ? target.showEnabledOnly : false
             if (kind === "providers")
                 result.providers = target.enabledList()
-            else {
+            else if (kind === "notifications") {
+                result.notifications = {
+                    thresholdWarnings: target.cfg_quotaWarningNotificationsEnabled,
+                    statusChanges: target.cfg_notifyStatus,
+                    sessionThresholds: target.cfg_quotaWarningSessionThresholds,
+                    weeklyThresholds: target.cfg_quotaWarningWeeklyThresholds
+                }
+            } else {
                 result.paths = [target.cfg_cliPath, target.cfg_cliEnvironmentFile, target.cfg_claudeAdapterPath]
-                result.notifications = [target.cfg_notifyQuota, target.cfg_notifyStatus, target.cfg_notifyThreshold]
             }
             inspect(win.contentItem, result)
         }
