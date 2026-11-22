@@ -64,13 +64,13 @@ shoot() {
 
 # Target the visible configuration dialog owned by this scene's viewer.
 find_settings() {
-    xdotool search --all --onlyvisible --pid "$1" --name 'CodexBar Settings' --limit 1
+    xdotool search --all --onlyvisible --pid "$1" --limit 1 --name 'CodexBar Settings'
 }
 
 open_settings() {
     # The fixture's Codex card has two rate windows with a pace line each.
-    xdotool mousemove 60 474 click 1
-    timeout 15s xdotool search --sync --all --onlyvisible --pid "$1" --name 'CodexBar Settings' --limit 1
+    xdotool mousemove 60 482 click 1
+    timeout 15s xdotool search --sync --all --onlyvisible --pid "$1" --limit 1 --name 'CodexBar Settings'
 }
 
 # render NAME PACKAGE WIDTHxHEIGHT [plasmoidviewer options...]; every run
@@ -190,7 +190,7 @@ sleep "${SMOKE_WAIT:-15}"
 xdotool mousemove 559 859
 sleep 1
 import -window root "$out/popup-about.before.png"
-xdotool mousemove 72 506 click 1 mousemove 559 859
+xdotool mousemove 72 514 click 1 mousemove 559 859
 sleep 3
 shoot popup-about 560x860
 if magick compare -metric AE "$out/popup-about.before.png" "$out/popup-about.screen.png" null: 2>/dev/null; then
