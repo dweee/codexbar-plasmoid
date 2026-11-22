@@ -44,7 +44,7 @@ ColumnLayout {
                 title: Catalog.slotTitle(providerId, slot, minutes),
                 win: w,
                 minutes: minutes,
-                pace: Pace.resolve(entry.pace && entry.pace[slot], w, minutes, plasmoidRoot.nowMs, Plasmoid.configuration.paceWorkDays, providerId)
+                pace: Pace.resolve(Catalog.slotPace(entry, slot), w, minutes, plasmoidRoot.nowMs, Plasmoid.configuration.paceWorkDays, providerId)
             })
         }
         // Kimi's transport slots are inverted. Keep legacy ordering for every
@@ -268,7 +268,10 @@ ColumnLayout {
 
             TruncatedLabel {
                 visible: text !== ""
-                text: Plasmoid.configuration.showPace ? Pace.text(section.modelData.pace, section.modelData.minutes > 0 && section.modelData.minutes <= 360, providerId) : ""
+                text: Plasmoid.configuration.showPace
+                    ? (Pace.text(section.modelData.pace, section.modelData.minutes > 0 && section.modelData.minutes <= 360, providerId)
+                       || Catalog.paceLine(section.modelData.pace, section.modelData.win, section.modelData.minutes, plasmoidRoot.nowMs, providerId))
+                    : ""
                 opacity: 0.55
                 font: Kirigami.Theme.smallFont
                 Layout.fillWidth: true

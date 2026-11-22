@@ -6,7 +6,7 @@
 .pragma library
 
 var PROVIDERS = {
-    // Order follows `codexbar usage --help` (CodexBar 0.80.0).
+    // Order follows `codexbar usage --help` (CodexBar 0.84.0).
     "codex":        { name: "Codex",              color: "#49A3B0", dashboard: "https://chatgpt.com/settings/usage?tab=overview", status: "https://status.openai.com/", icon: "ProviderIcon-codex.svg", critter: "codex" },
     "openai":       { name: "OpenAI",             color: "#0F826E", dashboard: "https://platform.openai.com/usage", status: "https://status.openai.com", icon: "ProviderIcon-codex.svg" },
     "azure-openai": { name: "Azure OpenAI",       color: "#0078D4", dashboard: "https://ai.azure.com", status: "https://azure.status.microsoft/en-us/status", icon: "ProviderIcon-codex.svg" },
@@ -114,7 +114,12 @@ var PROVIDERS = {
     "parallel":     { name: "Parallel",           color: "#1D1C1A", dashboard: "https://platform.parallel.ai", status: "", icon: "ProviderIcon-parallel.svg", minCli: "0.75.0" },
     "claudeplatform": { name: "Claude Platform",    color: "#CC7C5E", dashboard: "https://platform.claude.com/settings/billing", status: "https://status.claude.com/", icon: "ProviderIcon-claudeplatform.svg", minCli: "0.76.0" },
     "munito":       { name: "Munito",             color: "#702CF6", dashboard: "https://console.munito.ai", status: "", icon: "ProviderIcon-munito.svg", minCli: "0.77.0" },
-    "traecn":       { name: "Trae CN",            color: "#4D7CFE", dashboard: "https://www.trae.cn/dashboard#usage", status: "", icon: "ProviderIcon-traecn.svg", minCli: "0.80.0" }
+    "traecn":       { name: "Trae CN",            color: "#4D7CFE", dashboard: "https://www.trae.cn/dashboard#usage", status: "", icon: "ProviderIcon-traecn.svg", minCli: "0.80.0" },
+    "chatbox":      { name: "Chatbox AI",         color: "#228BE6", dashboard: "https://chatboxai.app", status: "", icon: "ProviderIcon-chatbox.svg", minCli: "0.81.0" },
+    "abliteration": { name: "abliteration.ai",    color: "#1B1B1B", dashboard: "https://abliteration.ai", status: "", icon: "ProviderIcon-abliteration.svg", minCli: "0.81.0" },
+    "opendesign":   { name: "OpenDesign",         color: "#202020", dashboard: "https://open-design.ai/cloud/dashboard", status: "", icon: "ProviderIcon-opendesign.svg", minCli: "0.83.0" },
+    "siliconflow":  { name: "SiliconFlow",        color: "#6E29F5", dashboard: "https://cloud.siliconflow.cn", status: "", icon: "ProviderIcon-siliconflow.svg", minCli: "0.84.0" },
+    "tripo":        { name: "Tripo",              color: "#F8CF00", dashboard: "https://developers.tripo3d.ai/en/billing", status: "https://tripo3d.statuspage.io", icon: "ProviderIcon-tripo.svg", minCli: "0.84.0" }
 }
 
 // Providers whose local logs the `codexbar cost` command can price.
@@ -492,16 +497,25 @@ function windowBarFill(w, showUsed) {
     return showUsed ? used : 100 - used
 }
 
-// Menu pace line, matching CodexBarCore UsagePace / UsagePaceText. Kimi does
-// not return the CLI's pre-computed `pace` payload, so reproduce that logic
-// from the weekly window without rounding the values used in the projection.
+// The CLI's pace payload for a rate-window slot, or null. CodexBar computes
+// it per slot (`pace.primary`, `.secondary`, `.tertiary`) for every window
+// the provider's descriptor paces: session, weekly and monthly alike.
+function slotPace(entry, slot) {
+    var pace = entry && entry.pace && typeof entry.pace === "object" ? entry.pace[slot] : null
+    return pace && typeof pace === "object" ? pace : null
+}
+
+// Menu pace line, matching CodexBarCore UsagePace / UsagePaceText. Without
+// the CLI's pre-computed `pace` payload (Kimi, extra rate windows, Claude
+// accounts), reproduce that logic for any window of known duration without
+// rounding the values used in the projection.
 function paceLine(pace, win, windowMinutes, nowMs, providerId) {
     if (pace && pace.summary) {
         var parts = pace.summary.split("|").map(function (p) { return p.trim() })
         var keep = parts.filter(function (p) { return p.indexOf("Expected") !== 0 })
         if (keep.length > 0) return "Pace: " + keep.join(" · ")
     }
-    if (windowMinutes !== 10080 || !windowUsageKnown(win) || !win.resetsAt)
+    if (!(windowMinutes > 0) || !windowUsageKnown(win) || !win.resetsAt)
         return ""
 
     var resetMs = Date.parse(win.resetsAt)
@@ -515,7 +529,7 @@ function paceLine(pace, win, windowMinutes, nowMs, providerId) {
     if (elapsed === 0 && actual > 0)
         return ""
     var expected = (elapsed / durationMs) * 100
-    // CodexBarCore hides pace until enough of the weekly window has elapsed.
+    // CodexBarCore hides pace until enough of the window has elapsed.
     if (expected < 3 && actual < 100)
         return ""
     var delta = actual - expected

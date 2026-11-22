@@ -10,7 +10,7 @@ import zipfile
 
 REPOSITORY = pathlib.Path(__file__).resolve().parents[1]
 PLUGIN_ID = "com.github.psimaker.codexbar"
-VERSION = "0.7.0-dave.1"
+VERSION = "0.7.1-dave.1"
 ARTIFACT_NAME = f"{PLUGIN_ID}-{VERSION}.plasmoid"
 
 
