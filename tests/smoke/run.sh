@@ -181,7 +181,9 @@ kill "$clicks_pid" 2>/dev/null || true
 wait "$clicks_pid" 2>/dev/null || true
 
 # "About CodexBar" at the bottom of the popup opens the About page, which
-# shows the version from metadata.json.
+# shows the version from metadata.json. The popup opens on the Codex card, so
+# this click and the "Settings…" clicks below move with that card's height
+# (two rate windows, each with a pace line, in the fixture).
 rm -f "$CODEXBAR_MOCK_STATE"
 plasmoidviewer -a "$(package about "$three")" -s 560x860 -f planar >"$out/popup-about.log" 2>&1 &
 about_pid=$!
