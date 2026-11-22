@@ -31,7 +31,7 @@ QML_ERRORS = re.compile(
 )
 LOAD_ERRORS = re.compile(r"does not exist|Containment doesn.t exist")
 CONFIG_WARNING = re.compile(
-    r"/config(?:General|Providers)\.qml:(?:\d+:)*\s*Setting initial properties failed: "
+    r"/config(?:General|Notifications|Providers)\.qml:(?:\d+:)*\s*Setting initial properties failed: "
     r"SimpleKCM does not have a property called cfg_configWriteError(?:Default)?$"
 )
 EMAIL = re.compile(r"[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}")
@@ -45,6 +45,7 @@ def inject(package):
         ("FullView.qml", "id: fullRoot", 'target: fullRoot; subject: mainColumn; viewport: flick; kind: "popup"'),
         ("CliSetupCard.qml", "id: card", 'target: card; subject: card; kind: "setup"'),
         ("configGeneral.qml", "id: page", 'target: page; subject: page; kind: "general"'),
+        ("configNotifications.qml", "id: page", 'target: page; subject: page; kind: "notifications"'),
         ("configProviders.qml", "id: page", 'target: page; subject: page; kind: "providers"'),
     ]:
         path = ui / name
@@ -230,10 +231,15 @@ def validate(report, view, theme="dark"):
     elif view == "settings-general":
         require(report["kind"] == "general", "General page did not open")
         require(report["paths"] == ["", "", ""], "Settings must use neutral path placeholders")
-        require(report["notifications"] == [False, False, 10], "Notifications must show their default settings")
         expected = ["Refresh interval:", "Panel display:", "Usage bars fill:", "codexbar CLI path:",
-                    "Adapter executable path:", "Notifications:", "When a quota runs low or resets",
-                    "Low below", "% left", "When a provider's status changes"]
+                    "Adapter executable path:", "Notifications"]
+    elif view == "settings-notifications":
+        require(report["kind"] == "notifications", "Notifications page did not open")
+        defaults = {"thresholdWarnings": False, "statusChanges": False,
+                    "sessionThresholds": "50,20", "weeklyThresholds": "50,20"}
+        require(report["notifications"] == defaults, "Notifications must show their default settings")
+        expected = ["Threshold warnings", "Session thresholds (% remaining):",
+                    "Weekly thresholds (% remaining):", "When the provider service status changes"]
     elif view == "settings-providers":
         require(report["kind"] == "providers" and report["enabledOnly"], "Enabled filter is not selected")
         expected = ["config.json", "Show enabled only", "Codex", "Claude", "Antigravity", "Config: OAuth"]
