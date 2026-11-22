@@ -4,6 +4,7 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
 import "code/catalog.js" as Catalog
+import "code/summaryPace.js" as SummaryPace
 
 // The "Overview" tab: one compact row per provider.
 ColumnLayout {
@@ -40,6 +41,12 @@ ColumnLayout {
             // the weekly cap in primary and the five-hour cap in secondary.
             readonly property var primaryWin: usage ? Catalog.windowFor(usage, providerId, 300) : null
             readonly property var secondaryWin: usage ? Catalog.windowFor(usage, providerId, 10080) : null
+            readonly property var primaryPace: Plasmoid.configuration.showPace
+                ? SummaryPace.resolve(d ? d.entry : null, providerId, primaryWin,
+                    overview.plasmoidRoot.nowMs, Plasmoid.configuration.paceWorkDays) : null
+            readonly property var secondaryPace: Plasmoid.configuration.showPace
+                ? SummaryPace.resolve(d ? d.entry : null, providerId, secondaryWin,
+                    overview.plasmoidRoot.nowMs, Plasmoid.configuration.paceWorkDays) : null
 
             Layout.fillWidth: true
             implicitHeight: rowContent.implicitHeight + Kirigami.Units.smallSpacing * 2
@@ -102,6 +109,8 @@ ColumnLayout {
                             Layout.fillWidth: true
                             implicitHeight: 4
                             percent: Catalog.windowBarFill(overviewRow.primaryWin, Plasmoid.configuration.usageBarsShowUsed)
+                            expectedPercent: SummaryPace.expectedPercent(overviewRow.primaryPace, Plasmoid.configuration.usageBarsShowUsed)
+                            paceStage: overviewRow.primaryPace ? overviewRow.primaryPace.stage : "onTrack"
                             fillColor: overviewRow.meta.color
                             opacity: overviewRow.primaryWin ? 1 : 0.35
                         }
@@ -130,6 +139,8 @@ ColumnLayout {
                             Layout.fillWidth: true
                             implicitHeight: 4
                             percent: Catalog.windowBarFill(overviewRow.secondaryWin, Plasmoid.configuration.usageBarsShowUsed)
+                            expectedPercent: SummaryPace.expectedPercent(overviewRow.secondaryPace, Plasmoid.configuration.usageBarsShowUsed)
+                            paceStage: overviewRow.secondaryPace ? overviewRow.secondaryPace.stage : "onTrack"
                             fillColor: overviewRow.meta.color
                             opacity: overviewRow.secondaryWin ? 0.75 : 0.35
                         }

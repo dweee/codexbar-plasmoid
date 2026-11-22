@@ -4,6 +4,7 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
 import "code/catalog.js" as Catalog
+import "code/summaryPace.js" as SummaryPace
 
 // The popup: provider switcher tabs on top, the selected card below,
 // then the action rows and the footer menu — like CodexBar's menu.
@@ -186,6 +187,15 @@ Item {
                                     readonly property var meta: Catalog.meta(tabId)
                                     readonly property real remaining:
                                         isOverview ? -1 : fullRoot.plasmoidRoot.remainingPercent(tabId, "session")
+                                    readonly property var pace: {
+                                        fullRoot.plasmoidRoot.rev
+                                        if (isOverview || !Plasmoid.configuration.showPace) return null
+                                        var d = fullRoot.plasmoidRoot.usageData[tabId]
+                                        var pick = fullRoot.plasmoidRoot.panelPick(tabId, "session")
+                                        return SummaryPace.resolve(d ? d.entry : null, tabId,
+                                            pick ? pick.window : null, fullRoot.plasmoidRoot.nowMs,
+                                            Plasmoid.configuration.paceWorkDays)
+                                    }
 
                                     width: fullRoot.naturalTabWidth(tabId)
                                     height: tabList.height
@@ -271,6 +281,8 @@ Item {
                                                  : Plasmoid.configuration.usageBarsShowUsed
                                                    ? 100 - tab.remaining : tab.remaining
                                         fillColor: tab.meta.color
+                                        expectedPercent: SummaryPace.expectedPercent(tab.pace, Plasmoid.configuration.usageBarsShowUsed)
+                                        paceStage: tab.pace ? tab.pace.stage : "onTrack"
                                     }
 
                                     MouseArea {
