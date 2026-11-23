@@ -62,6 +62,17 @@ shoot() {
     magick "$out/$1.screen.png" -crop "${2}+0+0" +repage "$out/$1.png"
 }
 
+# Target the visible configuration dialog owned by this scene's viewer.
+find_settings() {
+    xdotool search --all --onlyvisible --pid "$1" --limit 1 --name 'CodexBar Settings'
+}
+
+open_settings() {
+    # The fixture's Codex card has two rate windows with a pace line each.
+    xdotool mousemove 60 482 click 1
+    timeout 15s xdotool search --sync --all --onlyvisible --pid "$1" --limit 1 --name 'CodexBar Settings'
+}
+
 # render NAME PACKAGE WIDTHxHEIGHT [plasmoidviewer options...]; every run
 # starts from a fresh config.json where only Codex is enabled, or from the
 # mock's state in $config_state (space-separated) when that is set.
@@ -170,7 +181,9 @@ kill "$clicks_pid" 2>/dev/null || true
 wait "$clicks_pid" 2>/dev/null || true
 
 # "About CodexBar" at the bottom of the popup opens the About page, which
-# shows the version from metadata.json.
+# shows the version from metadata.json. The popup opens on the Codex card, so
+# this click and the "Settings…" clicks below move with that card's height
+# (two rate windows, each with a pace line, in the fixture).
 rm -f "$CODEXBAR_MOCK_STATE"
 plasmoidviewer -a "$(package about "$three")" -s 560x860 -f planar >"$out/popup-about.log" 2>&1 &
 about_pid=$!
@@ -179,11 +192,15 @@ sleep "${SMOKE_WAIT:-15}"
 xdotool mousemove 559 859
 sleep 1
 import -window root "$out/popup-about.before.png"
-xdotool mousemove 72 486 click 1 mousemove 559 859
+xdotool mousemove 72 514 click 1 mousemove 559 859
 sleep 3
 shoot popup-about 560x860
 if magick compare -metric AE "$out/popup-about.before.png" "$out/popup-about.screen.png" null: 2>/dev/null; then
     echo "About CodexBar did not open the About page" >&2
+    failed=1
+fi
+if find_settings "$about_pid" >/dev/null 2>&1; then
+    echo "The About click opened the settings window" >&2
     failed=1
 fi
 kill "$about_pid" 2>/dev/null || true
@@ -197,19 +214,15 @@ plasmoidviewer -a "$(package settings "$three" notifyQuota=true notifyStatus=tru
     >"$out/settings.log" 2>&1 &
 settings_pid=$!
 sleep "${SMOKE_WAIT:-15}"
-# "Settings…" at the bottom of the popup opens the configuration window.
-xdotool mousemove 60 454 click 1
-sleep 5
-settings_window="$(xdotool search --name 'CodexBar Settings' | head -n 1)"
-if [[ -z "$settings_window" ]]; then
+if ! settings_window="$(open_settings "$settings_pid")"; then
     echo "The settings window did not open" >&2
     failed=1
 else
     xdotool windowsize "$settings_window" 1000 890
     sleep 2
     import -window "$settings_window" "$out/settings-general.png"
-    # The sidebar's second category is the Providers page.
-    xdotool mousemove 63 100 click 1
+    # Providers is the third category, after General and Notifications.
+    xdotool mousemove 63 165 click 1
     sleep 3
     import -window "$settings_window" "$out/settings-providers.png"
     # Claude's gear button (second row) opens its override dialog. The
@@ -235,16 +248,14 @@ plasmoidviewer -a "$(package external "$three" refreshIntervalMinutes=1)" -s 560
     >"$out/settings-external.log" 2>&1 &
 external_pid=$!
 sleep "${SMOKE_WAIT:-15}"
-xdotool mousemove 60 454 click 1
-sleep 5
-external_window="$(xdotool search --name 'CodexBar Settings' | head -n 1)"
-if [[ -z "$external_window" ]]; then
-    echo "The settings window did not open" >&2
+if ! external_window="$(open_settings "$external_pid")"; then
+    echo "The settings window did not open for the external config scene" >&2
+    xwininfo -root -tree >"$out/settings-external.windows.txt" 2>&1 || true
     failed=1
 else
     xdotool windowsize "$external_window" 1000 890
     sleep 2
-    xdotool mousemove 63 100 click 1
+    xdotool mousemove 63 165 click 1
     sleep 3
     echo groq >>"$CODEXBAR_MOCK_STATE"
     sleep 70
@@ -274,16 +285,14 @@ if grep -q -E ' usage .*--source' "$CODEXBAR_MOCK_STATE.calls"; then
     echo "Probes still pass --source with the sources in config.json" >&2
     failed=1
 fi
-xdotool mousemove 60 454 click 1
-sleep 5
-sources_window="$(xdotool search --name 'CodexBar Settings' | head -n 1)"
-if [[ -z "$sources_window" ]]; then
-    echo "The settings window did not open" >&2
+if ! sources_window="$(open_settings "$sources_pid")"; then
+    echo "The settings window did not open for the stored sources scene" >&2
+    xwininfo -root -tree >"$out/settings-sources.windows.txt" 2>&1 || true
     failed=1
 else
     xdotool windowsize "$sources_window" 1000 890
     sleep 2
-    xdotool mousemove 63 100 click 1
+    xdotool mousemove 63 165 click 1
     sleep 3
     import -window "$sources_window" "$out/settings-sources.png"
     xdotool mousemove 784 869 click 1

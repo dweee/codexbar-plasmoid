@@ -10,7 +10,7 @@ import zipfile
 
 REPOSITORY = pathlib.Path(__file__).resolve().parents[1]
 PLUGIN_ID = "com.github.psimaker.codexbar"
-VERSION = "0.7.0-dave.1"
+VERSION = "0.7.1-dave.1"
 ARTIFACT_NAME = f"{PLUGIN_ID}-{VERSION}.plasmoid"
 
 
@@ -78,6 +78,8 @@ class PackagingTests(unittest.TestCase):
         # A published tag whose metadata version differs from the current one,
         # so the artifact name must follow the packaged ref, not the worktree.
         tag = "v0.3.1"
+        # GitHub forks do not inherit upstream release tags.
+        self.run_command("git", "tag", "-f", tag, "57580799df76f75b8a419e58436d3384b7c5b5f4")
         self.build(tag)
         tagged_artifact = self.repo / "dist" / f"{PLUGIN_ID}-{tag[1:]}.plasmoid"
         tracked = self.run_command(

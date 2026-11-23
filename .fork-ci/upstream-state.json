@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "upstream": "psimaker/codexbar-plasmoid",
+  "track": "branch",
+  "branch": "cc598c38a33d9bb2ef587e92258c31ca998fdf96"
+}
