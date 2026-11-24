@@ -37,16 +37,7 @@ ColumnLayout {
                 return x ? Object.assign({}, x) : null
             }
             readonly property var usage: d && d.entry && d.entry.usage ? d.entry.usage : null
-            // Rate-window slots are provider implementation details. Kimi returns
-            // the weekly cap in primary and the five-hour cap in secondary.
-            readonly property var primaryWin: usage ? Catalog.windowFor(usage, providerId, 300) : null
-            readonly property var secondaryWin: usage ? Catalog.windowFor(usage, providerId, 10080) : null
-            readonly property var primaryPace: Plasmoid.configuration.showPace
-                ? SummaryPace.resolve(d ? d.entry : null, providerId, primaryWin,
-                    overview.plasmoidRoot.nowMs, Plasmoid.configuration.paceWorkDays) : null
-            readonly property var secondaryPace: Plasmoid.configuration.showPace
-                ? SummaryPace.resolve(d ? d.entry : null, providerId, secondaryWin,
-                    overview.plasmoidRoot.nowMs, Plasmoid.configuration.paceWorkDays) : null
+            readonly property var monthlyBlocker: Catalog.monthlyBlocker(usage, providerId, overview.plasmoidRoot.nowMs)
 
             Layout.fillWidth: true
             implicitHeight: rowContent.implicitHeight + Kirigami.Units.smallSpacing * 2
@@ -93,70 +84,65 @@ ColumnLayout {
                         }
                     }
 
-                    GridLayout {
+                    PlasmaComponents3.Label {
                         Layout.fillWidth: true
-                        columns: 3
-                        columnSpacing: Kirigami.Units.smallSpacing * 2
-                        rowSpacing: Math.round(Kirigami.Units.smallSpacing / 2)
+                        visible: overviewRow.monthlyBlocker !== null
+                        text: i18n("Monthly exhausted · 5-hour and weekly blocked")
+                        color: Kirigami.Theme.negativeTextColor
+                        font: Kirigami.Theme.smallFont
+                        wrapMode: Text.WordWrap
+                    }
 
-                        PlasmaComponents3.Label {
-                            text: i18n("Session")
-                            opacity: 0.6
-                            font: Kirigami.Theme.smallFont
-                        }
+                    Repeater {
+                        model: Catalog.overviewWindows(overviewRow.usage, overviewRow.providerId)
 
-                        UsageBar {
+                        RowLayout {
+                            id: quotaRow
+                            required property var modelData
+                            readonly property var win: modelData.window
+                            readonly property var minutes: Catalog.effectiveWindowMinutes(win, overviewRow.providerId, "")
+                            readonly property bool blocked: overviewRow.monthlyBlocker !== null
+                                && win !== overviewRow.monthlyBlocker && (minutes === 300 || minutes === 10080)
+                            readonly property var pace: !blocked && Plasmoid.configuration.showPace
+                                ? SummaryPace.resolve(overviewRow.d ? overviewRow.d.entry : null,
+                                    overviewRow.providerId, win, overview.plasmoidRoot.nowMs,
+                                    Plasmoid.configuration.paceWorkDays) : null
                             Layout.fillWidth: true
-                            implicitHeight: 4
-                            percent: Catalog.windowBarFill(overviewRow.primaryWin, Plasmoid.configuration.usageBarsShowUsed)
-                            expectedPercent: SummaryPace.expectedPercent(overviewRow.primaryPace, Plasmoid.configuration.usageBarsShowUsed)
-                            paceStage: overviewRow.primaryPace ? overviewRow.primaryPace.stage : "onTrack"
-                            fillColor: overviewRow.meta.color
-                            opacity: overviewRow.primaryWin ? 1 : 0.35
-                        }
+                            spacing: Kirigami.Units.smallSpacing * 2
 
-                        PlasmaComponents3.Label {
-                            text: {
-                                if (!overviewRow.primaryWin)
-                                    return "–"
-                                if (Plasmoid.configuration.usageBarsShowUsed)
-                                    return Catalog.windowUsedText(overviewRow.primaryWin) + i18n("% used")
-                                return Catalog.windowRemainingText(overviewRow.primaryWin) + i18n("% left")
+                            PlasmaComponents3.Label {
+                                text: quotaRow.modelData.title
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * (overviewRow.providerId === "antigravity" ? 7 : 5)
+                                opacity: 0.6
+                                font: Kirigami.Theme.smallFont
                             }
-                            opacity: 0.6
-                            font: Kirigami.Theme.smallFont
-                            horizontalAlignment: Text.AlignRight
-                            Layout.minimumWidth: Kirigami.Units.gridUnit * 3
-                        }
 
-                        PlasmaComponents3.Label {
-                            text: i18n("Weekly")
-                            opacity: 0.6
-                            font: Kirigami.Theme.smallFont
-                        }
-
-                        UsageBar {
-                            Layout.fillWidth: true
-                            implicitHeight: 4
-                            percent: Catalog.windowBarFill(overviewRow.secondaryWin, Plasmoid.configuration.usageBarsShowUsed)
-                            expectedPercent: SummaryPace.expectedPercent(overviewRow.secondaryPace, Plasmoid.configuration.usageBarsShowUsed)
-                            paceStage: overviewRow.secondaryPace ? overviewRow.secondaryPace.stage : "onTrack"
-                            fillColor: overviewRow.meta.color
-                            opacity: overviewRow.secondaryWin ? 0.75 : 0.35
-                        }
-
-                        PlasmaComponents3.Label {
-                            text: {
-                                if (!overviewRow.secondaryWin)
-                                    return "–"
-                                if (Plasmoid.configuration.usageBarsShowUsed)
-                                    return Catalog.windowUsedText(overviewRow.secondaryWin) + i18n("% used")
-                                return Catalog.windowRemainingText(overviewRow.secondaryWin) + i18n("% left")
+                            UsageBar {
+                                Layout.fillWidth: true
+                                implicitHeight: 4
+                                percent: Catalog.windowBarFill(quotaRow.win, Plasmoid.configuration.usageBarsShowUsed)
+                                expectedPercent: SummaryPace.expectedPercent(quotaRow.pace, Plasmoid.configuration.usageBarsShowUsed)
+                                paceStage: quotaRow.pace ? quotaRow.pace.stage : "onTrack"
+                                fillColor: quotaRow.blocked || quotaRow.win === overviewRow.monthlyBlocker
+                                    ? Kirigami.Theme.negativeTextColor : overviewRow.meta.color
+                                opacity: quotaRow.blocked || !quotaRow.win ? 0.35 : 1
                             }
-                            opacity: 0.6
-                            font: Kirigami.Theme.smallFont
-                            horizontalAlignment: Text.AlignRight
-                            Layout.minimumWidth: Kirigami.Units.gridUnit * 3
+
+                            PlasmaComponents3.Label {
+                                text: {
+                                    if (quotaRow.blocked) return i18n("Blocked")
+                                    if (!quotaRow.win) return "–"
+                                    if (Plasmoid.configuration.usageBarsShowUsed)
+                                        return Catalog.windowUsedText(quotaRow.win) + i18n("% used")
+                                    return Catalog.windowRemainingText(quotaRow.win) + i18n("% left")
+                                }
+                                color: quotaRow.blocked || quotaRow.win === overviewRow.monthlyBlocker
+                                    ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
+                                opacity: 0.6
+                                font: Kirigami.Theme.smallFont
+                                horizontalAlignment: Text.AlignRight
+                                Layout.minimumWidth: Kirigami.Units.gridUnit * 3
+                            }
                         }
                     }
                 }

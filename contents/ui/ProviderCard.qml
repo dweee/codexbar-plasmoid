@@ -25,6 +25,7 @@ ColumnLayout {
     readonly property var entry: d && d.entry ? d.entry : null
     readonly property var usage: entry && entry.usage ? entry.usage : null
     readonly property color brandColor: meta.color
+    readonly property var monthlyBlocker: Catalog.monthlyBlocker(usage, providerId, plasmoidRoot.nowMs)
 
     spacing: Kirigami.Units.smallSpacing
 
@@ -221,6 +222,15 @@ ColumnLayout {
         Layout.preferredHeight: Kirigami.Units.smallSpacing
     }
 
+    PlasmaComponents3.Label {
+        Layout.fillWidth: true
+        visible: !card.extrasOnly && card.monthlyBlocker !== null
+        text: i18n("Monthly quota exhausted — 5-hour and weekly usage blocked")
+        color: Kirigami.Theme.negativeTextColor
+        font.weight: Font.DemiBold
+        wrapMode: Text.WordWrap
+    }
+
     // ---- rate window sections ----
     Repeater {
         model: card.extrasOnly ? [] : card.sections()
@@ -228,11 +238,16 @@ ColumnLayout {
         ColumnLayout {
             id: section
             required property var modelData
+            readonly property bool blocked: card.monthlyBlocker !== null
+                && modelData.win !== card.monthlyBlocker
+                && (modelData.minutes === 300 || modelData.minutes === 10080)
             Layout.fillWidth: true
             spacing: Math.round(Kirigami.Units.smallSpacing * 0.8)
 
             PlasmaComponents3.Label {
                 text: section.modelData.title
+                color: section.blocked || section.modelData.win === card.monthlyBlocker
+                    ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
                 font.weight: Font.DemiBold
                 font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.05
             }
@@ -240,8 +255,10 @@ ColumnLayout {
             UsageBar {
                 Layout.fillWidth: true
                 percent: Catalog.windowBarFill(section.modelData.win, Plasmoid.configuration.usageBarsShowUsed)
-                fillColor: card.brandColor
-                expectedPercent: Plasmoid.configuration.showPace && section.modelData.pace
+                fillColor: section.blocked || section.modelData.win === card.monthlyBlocker
+                    ? Kirigami.Theme.negativeTextColor : card.brandColor
+                opacity: section.blocked ? 0.35 : 1
+                expectedPercent: !section.blocked && Plasmoid.configuration.showPace && section.modelData.pace
                     ? (Plasmoid.configuration.usageBarsShowUsed ? section.modelData.pace.expectedUsedPercent : 100 - section.modelData.pace.expectedUsedPercent) : -1
                 paceStage: section.modelData.pace ? section.modelData.pace.stage : "onTrack"
             }
@@ -250,7 +267,8 @@ ColumnLayout {
                 Layout.fillWidth: true
 
                 PlasmaComponents3.Label {
-                    text: Plasmoid.configuration.usageBarsShowUsed
+                    text: section.blocked ? i18n("Blocked by monthly quota")
+                          : Plasmoid.configuration.usageBarsShowUsed
                           ? Catalog.windowUsedText(section.modelData.win) + i18n("% used")
                           : Catalog.windowRemainingText(section.modelData.win) + i18n("% left")
                     opacity: 0.75
@@ -268,7 +286,7 @@ ColumnLayout {
 
             TruncatedLabel {
                 visible: text !== ""
-                text: Plasmoid.configuration.showPace
+                text: !section.blocked && Plasmoid.configuration.showPace
                     ? (Pace.text(section.modelData.pace, section.modelData.minutes > 0 && section.modelData.minutes <= 360, providerId)
                        || Catalog.paceLine(section.modelData.pace, section.modelData.win, section.modelData.minutes, plasmoidRoot.nowMs, providerId))
                     : ""
@@ -281,7 +299,7 @@ ColumnLayout {
             TruncatedLabel {
                 Layout.fillWidth: true
                 visible: text !== ""
-                text: section.modelData.minutes >= 10070 && section.modelData.minutes <= 10090 ? plasmoidRoot.sessionEstimate(providerId, entry) : ""
+                text: !section.blocked && section.modelData.minutes >= 10070 && section.modelData.minutes <= 10090 ? plasmoidRoot.sessionEstimate(providerId, entry) : ""
                 font: Kirigami.Theme.smallFont
                 opacity: 0.75
             }

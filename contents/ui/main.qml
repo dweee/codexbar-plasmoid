@@ -1014,7 +1014,7 @@ PlasmoidItem {
         var d = usageData[p]
         if (!d || !d.entry || !d.entry.usage)
             return null
-        return Catalog.panelWindow(d.entry.usage, p, source)
+        return Catalog.panelWindow(d.entry.usage, p, source, nowMs)
     }
 
     // remaining percent for the panel icon / percent label; -1 = unknown
