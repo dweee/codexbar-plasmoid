@@ -143,7 +143,9 @@ case "${1:-}" in
         if [ -n "$provider" ] && [ "$provider" = "${CODEXBAR_MOCK_CRASH:-}" ]; then
             kill -SEGV $$
         fi
-        if [ -f "$fixtures/usage-$provider.json" ]; then
+        if [ "$provider" = codex ] && [ "${CODEXBAR_MOCK_CODEX_WEEKLY_ONLY:-0}" = 1 ]; then
+            serve "usage-codex-weekly-only.json"
+        elif [ -f "$fixtures/usage-$provider.json" ]; then
             serve "usage-$provider.json"
         else
             # Like the real CLI: an unknown --provider reports the providers

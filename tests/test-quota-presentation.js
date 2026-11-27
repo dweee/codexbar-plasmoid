@@ -50,8 +50,9 @@ const ag = {extraRateWindows: [
 assert.equal(C.panelWindow(ag, 'antigravity', 'session', now).remaining, 100)
 assert.equal(C.panelWindow(ag, 'antigravity', 'weekly', now).remaining, 95)
 assert.equal(C.panelWindow(ag, 'antigravity', 'lowest', now).remaining, 95)
-assert.deepEqual(Array.from(C.overviewWindows(ag, 'antigravity'), r => r.title), ['Gemini 5-hour', 'Gemini weekly'])
+assert.deepEqual(Array.from(C.overviewWindows(ag, 'antigravity'), r => r.title), ['Gemini 5-hour', 'Gemini weekly', 'Claude/GPT 5-hour', 'Claude/GPT weekly'])
 assert.equal(C.overviewWindows(ag, 'antigravity')[1].window, ag.extraRateWindows[1].window)
+assert.equal(C.overviewWindows(ag, 'antigravity')[3].window, ag.extraRateWindows[3].window)
 // Unknown or synthetic Gemini falls back independently for that cadence.
 for (const invalid of [
     {...ag.extraRateWindows[1], usageKnown: false},
@@ -68,3 +69,25 @@ const exhausted = {extraRateWindows: [{...ag.extraRateWindows[1], window: win(10
 assert.equal(C.panelWindow(exhausted, 'antigravity', 'weekly', now).remaining, 0)
 assert.equal(C.antigravitySummaryPick(null, 10080), null)
 console.log('Antigravity summary: Gemini priority, lowest mode, fallback labels and exhaustion passed')
+
+// A weekly-only Codex plan does not acquire a Session row from an absent,
+// synthetic or unreadable primary window, regardless of its transport slot.
+const weekly = win(84, 10080)
+for (const primary of [undefined, {...win(0, 300), isSyntheticPlaceholder: true},
+    {...win(0, 300), usageKnown: false}, win(null, 300)]) {
+    const weeklyOnly = {primary, secondary: weekly}
+    assert.deepEqual(Array.from(C.overviewWindows(weeklyOnly, 'codex'), r => r.title), ['Weekly'])
+    assert.equal(C.overviewWindows(weeklyOnly, 'codex')[0].window, weekly)
+}
+assert.deepEqual(Array.from(C.overviewWindows({primary: weekly}, 'codex'), r => r.title), ['Weekly'])
+assert.equal(C.windowFor({primary: weekly}, 'codex', 300), null)
+
+const exhaustedWeekly = win(100, 10080)
+const extra = {id: 'claude-weekly-scoped-opus', title: 'Opus weekly', window: exhaustedWeekly}
+const claude = {primary: win(0, 300), secondary: weekly, extraRateWindows: [
+    extra, {title: 'Unread', window: weekly, usageKnown: false}
+]}
+assert.deepEqual(Array.from(C.overviewWindows(claude, 'claude'), r => r.title),
+    ['Session', 'Weekly', 'Opus weekly'])
+assert.equal(C.overviewWindows(claude, 'claude')[2].window, exhaustedWeekly)
+assert.deepEqual(Array.from(C.overviewWindows({}, 'codex')), [])

@@ -31,46 +31,15 @@ ColumnLayout {
 
     function sections() {
         plasmoidRoot.rev
-        var out = []
-        if (!usage)
-            return out
-        var slots = Catalog.cardSlots(usage, providerId)
-        for (var i = 0; i < slots.length; i++) {
-            var slot = slots[i]
-            var w = Catalog.usableWindow(usage[slot])
-            if (!w)
-                continue
-            var minutes = Catalog.effectiveWindowMinutes(w, providerId, slot)
-            out.push({
-                title: Catalog.slotTitle(providerId, slot, minutes),
-                win: w,
-                minutes: minutes,
-                pace: Pace.resolve(Catalog.slotPace(entry, slot), w, minutes, plasmoidRoot.nowMs, Plasmoid.configuration.paceWorkDays, providerId)
-            })
-        }
-        // Kimi's transport slots are inverted. Keep legacy ordering for every
-        // other provider, especially those without window duration metadata.
-        if (providerId === "kimi") {
-            out.sort(function (a, b) {
-                var am = a.minutes > 0 ? a.minutes : Number.MAX_VALUE
-                var bm = b.minutes > 0 ? b.minutes : Number.MAX_VALUE
-                return am - bm
-            })
-        }
-        if (usage.extraRateWindows) {
-            for (var i = 0; i < usage.extraRateWindows.length; i++) {
-                var ew = usage.extraRateWindows[i]
-                var w = Catalog.namedWindow(ew)
-                if (w)
-                    out.push({
-                        title: ew.title || "Extra",
-                        win: w,
-                        minutes: Catalog.effectiveWindowMinutes(w, providerId, "extra"),
-                        pace: null
-                    })
+        return Catalog.cardWindows(usage, providerId).map(function (row) {
+            return {
+                title: row.title,
+                win: row.window,
+                minutes: row.minutes,
+                pace: row.slot === "extra" ? null : Pace.resolve(Catalog.slotPace(entry, row.slot),
+                    row.window, row.minutes, plasmoidRoot.nowMs, Plasmoid.configuration.paceWorkDays, providerId)
             }
-        }
-        return out
+        })
     }
 
     // earliest available reset credit that has not expired yet

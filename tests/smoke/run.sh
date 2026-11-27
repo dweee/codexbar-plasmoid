@@ -117,6 +117,9 @@ render panel-vertical "$(package vertical "$three" showPercentInPanel=true showR
     separateIcons=true)" 160x520 -c org.kde.panel -f vertical -l leftedge
 expect_extent panel-vertical width 40 120 160x460+0+0
 render popup "$(package popup "$three")" 560x860 -f planar
+# A weekly-only Codex plan shares Overview with Claude’s scoped quota.
+CODEXBAR_MOCK_CODEX_WEEKLY_ONLY=1 render popup-weekly-only \
+    "$(package weekly-only enabledProviders=codex,claude)" 560x860 -f planar
 render popup-used "$(package popup-used "$three" usageBarsShowUsed=true)" 560x860 -f planar
 # A provider only config.json knows, such as a user plugin, still shows up.
 render popup-plugin "$(package plugin enabledProviders=codex,myplugin)" 560x860 -f planar

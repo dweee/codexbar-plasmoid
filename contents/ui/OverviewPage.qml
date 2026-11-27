@@ -37,6 +37,7 @@ ColumnLayout {
                 return x ? Object.assign({}, x) : null
             }
             readonly property var usage: d && d.entry && d.entry.usage ? d.entry.usage : null
+            readonly property var windows: Catalog.overviewWindows(usage, providerId)
             readonly property var monthlyBlocker: Catalog.monthlyBlocker(usage, providerId, overview.plasmoidRoot.nowMs)
 
             Layout.fillWidth: true
@@ -77,6 +78,8 @@ ColumnLayout {
                                     return i18n("refreshing…")
                                 if (!overviewRow.usage)
                                     return i18n("no data")
+                                if (!overviewRow.windows.length)
+                                    return i18n("no quota data")
                                 return ""
                             }
                             opacity: 0.6
@@ -94,7 +97,7 @@ ColumnLayout {
                     }
 
                     Repeater {
-                        model: Catalog.overviewWindows(overviewRow.usage, overviewRow.providerId)
+                        model: overviewRow.windows
 
                         RowLayout {
                             id: quotaRow
