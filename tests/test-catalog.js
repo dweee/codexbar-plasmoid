@@ -156,7 +156,7 @@ const antigravity = {
           window: { usedPercent: 90, windowMinutes: 10080 }, usageKnown: false },
     ],
 }
-// the most constrained known bucket wins; an unknown one never does
+// Gemini readings take priority; unknown windows never supply a reading
 assert.equal(catalog.windowFor(antigravity, "antigravity", 10080).usedPercent, 65)
 assert.equal(catalog.windowFor(antigravity, "antigravity", 300).usedPercent, 40)
 assert.deepEqual(plain(catalog.cardSlots(antigravity, "antigravity")), [])

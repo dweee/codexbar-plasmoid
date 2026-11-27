@@ -375,19 +375,18 @@ function windowFor(usage, providerId, wantedMinutes) {
     }
     // Preserve the legacy slot contract for other providers whose API payloads
     // do not include a window duration. Kimi is the only known inverted pair.
-    if (providerId !== "kimi") {
-        if (wantedMinutes === 300) return usableWindow(usage.primary)
-        if (wantedMinutes === 10080) return usableWindow(usage.secondary)
-    }
-    return null
+    var fallbackSlot = wantedMinutes === 300 ? "primary" : wantedMinutes === 10080 ? "secondary" : null
+    if (providerId === "kimi" || !fallbackSlot) return null
+    var fallback = usableWindow(usage[fallbackSlot])
+    return effectiveWindowMinutes(fallback, providerId, fallbackSlot) === 0 ? fallback : null
 }
 
 // Antigravity reports its quota per model family. The quota summary arrives
 // as named extra windows (Gemini / Claude-GPT, 5-hour / weekly), while
 // primary and secondary only repeat the most constrained bucket of each
-// family, so neither slot means "session" or "weekly". Like CodexBarCore's
-// Antigravity presentation, pick the most constrained known bucket with the
-// wanted cadence. Local reports without a summary carry no cadence at all.
+// family, so neither slot means "session" or "weekly". Summaries prefer
+// Gemini for each cadence, falling back to Claude/GPT only when no known
+// Gemini reading exists. Local reports without cadence stay unknown.
 var ANTIGRAVITY_SUMMARY_PREFIX = "antigravity-quota-summary-"
 
 function antigravitySummaryWindows(usage) {
@@ -398,20 +397,36 @@ function antigravitySummaryWindows(usage) {
     })
 }
 
-function antigravityWindowFor(usage, wantedMinutes) {
+function antigravitySummaryPick(usage, wantedMinutes) {
+    if (!usage) return null
     var summary = antigravitySummaryWindows(usage)
+    var cadence = wantedMinutes === 300 ? "5-hour" : "weekly"
     var candidates = summary.length > 0
-        ? summary.map(namedWindow)
-        : [usage.primary, usage.secondary, usage.tertiary].map(usableWindow)
+        ? summary.map(function (ew) {
+            var gemini = ew.id.indexOf(ANTIGRAVITY_SUMMARY_PREFIX + "gemini-") === 0
+            return { window: namedWindow(ew), priority: gemini ? 0 : 1,
+                title: ew.title || (gemini ? "Gemini " : "Claude/GPT ") + cadence }
+        })
+        : ["primary", "secondary", "tertiary"].map(function (slot, i) {
+            return { window: usableWindow(usage[slot]), priority: i === 0 ? 0 : 1,
+                title: (i === 0 ? "Gemini " : "Claude/GPT ") + cadence }
+        })
     var best = null
     for (var i = 0; i < candidates.length; i++) {
-        var w = candidates[i]
+        var candidate = candidates[i]
+        var w = candidate.window
         if (!windowUsageKnown(w) || Number(w.windowMinutes) !== wantedMinutes)
             continue
-        if (best === null || Number(w.usedPercent) > Number(best.usedPercent))
-            best = w
+        if (best === null || candidate.priority < best.priority
+                || (candidate.priority === best.priority && w.usedPercent > best.window.usedPercent))
+            best = candidate
     }
     return best
+}
+
+function antigravityWindowFor(usage, wantedMinutes) {
+    var pick = antigravitySummaryPick(usage, wantedMinutes)
+    return pick ? pick.window : null
 }
 
 // Usage is known when a window reports a finite usedPercent and does not
@@ -440,19 +455,89 @@ function isMonthly(minutes) {
     return minutes >= 40000 && minutes <= 46000
 }
 
+// OpenCode Go's monthly allowance gates both shorter rolling windows. Use
+// the unrounded reading: 99.6% is low, but does not establish exhaustion.
+function monthlyBlocker(usage, providerId, nowMs) {
+    if (providerId !== "opencodego" || !usage) return null
+    var slots = ["primary", "secondary", "tertiary"]
+    for (var i = 0; i < slots.length; i++) {
+        var w = usableWindow(usage[slots[i]])
+        if (!windowUsageKnown(w) || w.usedPercent < 100
+                || !isMonthly(effectiveWindowMinutes(w, providerId, slots[i]))) continue
+        var reset = Date.parse(w.resetsAt)
+        if (typeof nowMs === "number" && isFinite(reset) && reset <= nowMs) continue
+        return w
+    }
+    return null
+}
+
+// Both views use the provider's declared slots and named quota windows.
+function cardWindows(usage, providerId) {
+    if (!usage) return []
+    var out = []
+    var slots = cardSlots(usage, providerId)
+    for (var i = 0; i < slots.length; i++) {
+        var slot = slots[i]
+        var w = usableWindow(usage[slot])
+        if (!w) continue
+        var minutes = effectiveWindowMinutes(w, providerId, slot)
+        out.push({ window: w, title: slotTitle(providerId, slot, minutes), minutes: minutes, slot: slot })
+    }
+    // Kimi returns the weekly window in the primary transport slot.
+    if (providerId === "kimi") {
+        out.sort(function (a, b) {
+            return (a.minutes || Number.MAX_VALUE) - (b.minutes || Number.MAX_VALUE)
+        })
+    }
+    var extras = usage.extraRateWindows || []
+    for (var j = 0; j < extras.length; j++) {
+        var extra = extras[j]
+        var window = namedWindow(extra)
+        if (window)
+            out.push({ window: window, title: extra.title || "Extra",
+                minutes: effectiveWindowMinutes(window, providerId, "extra"), slot: "extra" })
+    }
+    return out
+}
+
+function overviewWindows(usage, providerId) {
+    var rows = cardWindows(usage, providerId).filter(function (row) {
+        return windowUsageKnown(row.window)
+    })
+    if (providerId !== "antigravity") return rows
+
+    // Put the preferred per-cadence summaries first and retain the other
+    // reported model quotas once each.
+    var preferred = [300, 10080].map(function (minutes) {
+        return antigravitySummaryPick(usage, minutes)
+    }).filter(function (row) { return row !== null })
+    return preferred.concat(rows.filter(function (row) {
+        return !preferred.some(function (pick) { return pick.window === row.window })
+    }))
+}
+
 // The window behind a panel percentage and its remaining percent, or null.
 // source is "session" or "weekly" (each falls back to the other) or "lowest",
 // which also weighs monthly windows and usable extra windows such as
 // model-scoped weekly limits, since any of them can run out first.
-function panelWindow(usage, providerId, source) {
+function panelWindow(usage, providerId, source, nowMs) {
     if (!usage)
         return null
+    var blocker = monthlyBlocker(usage, providerId, nowMs)
+    if (blocker) return remainingPick(blocker)
     var session = remainingPick(windowFor(usage, providerId, 300))
     var weekly = remainingPick(windowFor(usage, providerId, 10080))
     if (source === "weekly")
         return weekly || session
     if (source !== "lowest")
         return session || weekly
+    // The two Antigravity picks already select Gemini (or a per-cadence
+    // fallback). Do not let another family's extras override that preference.
+    if (providerId === "antigravity") {
+        if (!session) return weekly
+        if (!weekly) return session
+        return session.remaining <= weekly.remaining ? session : weekly
+    }
     var picks = [session, weekly]
     var slots = ["primary", "secondary", "tertiary"]
     for (var s = 0; s < slots.length; s++) {
@@ -597,6 +682,12 @@ function cardSlots(usage, providerId) {
 // Card title for a slot window. Antigravity's slots are model families
 // (CodexBarCore's session/weekly labels for it), not time windows.
 function slotTitle(providerId, slot, windowMinutes) {
+    if (providerId === "cursor") {
+        if (slot === "primary") return windowMinutes === 10080 ? "Weekly" : "Total"
+        if (slot === "secondary") return "Cursor"
+        if (slot === "tertiary") return "Third Party"
+    }
+    if (providerId === "opencodego" && windowMinutes === 300) return "5-hour"
     if (providerId === "antigravity") {
         if (slot === "primary") return "Gemini Models"
         if (slot === "secondary") return "Claude and GPT"

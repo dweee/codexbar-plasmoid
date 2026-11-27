@@ -25,51 +25,21 @@ ColumnLayout {
     readonly property var entry: d && d.entry ? d.entry : null
     readonly property var usage: entry && entry.usage ? entry.usage : null
     readonly property color brandColor: meta.color
+    readonly property var monthlyBlocker: Catalog.monthlyBlocker(usage, providerId, plasmoidRoot.nowMs)
 
     spacing: Kirigami.Units.smallSpacing
 
     function sections() {
         plasmoidRoot.rev
-        var out = []
-        if (!usage)
-            return out
-        var slots = Catalog.cardSlots(usage, providerId)
-        for (var i = 0; i < slots.length; i++) {
-            var slot = slots[i]
-            var w = Catalog.usableWindow(usage[slot])
-            if (!w)
-                continue
-            var minutes = Catalog.effectiveWindowMinutes(w, providerId, slot)
-            out.push({
-                title: Catalog.slotTitle(providerId, slot, minutes),
-                win: w,
-                minutes: minutes,
-                pace: Pace.resolve(Catalog.slotPace(entry, slot), w, minutes, plasmoidRoot.nowMs, Plasmoid.configuration.paceWorkDays, providerId)
-            })
-        }
-        // Kimi's transport slots are inverted. Keep legacy ordering for every
-        // other provider, especially those without window duration metadata.
-        if (providerId === "kimi") {
-            out.sort(function (a, b) {
-                var am = a.minutes > 0 ? a.minutes : Number.MAX_VALUE
-                var bm = b.minutes > 0 ? b.minutes : Number.MAX_VALUE
-                return am - bm
-            })
-        }
-        if (usage.extraRateWindows) {
-            for (var i = 0; i < usage.extraRateWindows.length; i++) {
-                var ew = usage.extraRateWindows[i]
-                var w = Catalog.namedWindow(ew)
-                if (w)
-                    out.push({
-                        title: ew.title || "Extra",
-                        win: w,
-                        minutes: Catalog.effectiveWindowMinutes(w, providerId, "extra"),
-                        pace: null
-                    })
+        return Catalog.cardWindows(usage, providerId).map(function (row) {
+            return {
+                title: row.title,
+                win: row.window,
+                minutes: row.minutes,
+                pace: row.slot === "extra" ? null : Pace.resolve(Catalog.slotPace(entry, row.slot),
+                    row.window, row.minutes, plasmoidRoot.nowMs, Plasmoid.configuration.paceWorkDays, providerId)
             }
-        }
-        return out
+        })
     }
 
     // earliest available reset credit that has not expired yet
@@ -221,6 +191,15 @@ ColumnLayout {
         Layout.preferredHeight: Kirigami.Units.smallSpacing
     }
 
+    PlasmaComponents3.Label {
+        Layout.fillWidth: true
+        visible: !card.extrasOnly && card.monthlyBlocker !== null
+        text: i18n("Monthly quota exhausted — 5-hour and weekly usage blocked")
+        color: Kirigami.Theme.negativeTextColor
+        font.weight: Font.DemiBold
+        wrapMode: Text.WordWrap
+    }
+
     // ---- rate window sections ----
     Repeater {
         model: card.extrasOnly ? [] : card.sections()
@@ -228,11 +207,16 @@ ColumnLayout {
         ColumnLayout {
             id: section
             required property var modelData
+            readonly property bool blocked: card.monthlyBlocker !== null
+                && modelData.win !== card.monthlyBlocker
+                && (modelData.minutes === 300 || modelData.minutes === 10080)
             Layout.fillWidth: true
             spacing: Math.round(Kirigami.Units.smallSpacing * 0.8)
 
             PlasmaComponents3.Label {
                 text: section.modelData.title
+                color: section.blocked || section.modelData.win === card.monthlyBlocker
+                    ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
                 font.weight: Font.DemiBold
                 font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.05
             }
@@ -240,8 +224,10 @@ ColumnLayout {
             UsageBar {
                 Layout.fillWidth: true
                 percent: Catalog.windowBarFill(section.modelData.win, Plasmoid.configuration.usageBarsShowUsed)
-                fillColor: card.brandColor
-                expectedPercent: Plasmoid.configuration.showPace && section.modelData.pace
+                fillColor: section.blocked || section.modelData.win === card.monthlyBlocker
+                    ? Kirigami.Theme.negativeTextColor : card.brandColor
+                opacity: section.blocked ? 0.35 : 1
+                expectedPercent: !section.blocked && Plasmoid.configuration.showPace && section.modelData.pace
                     ? (Plasmoid.configuration.usageBarsShowUsed ? section.modelData.pace.expectedUsedPercent : 100 - section.modelData.pace.expectedUsedPercent) : -1
                 paceStage: section.modelData.pace ? section.modelData.pace.stage : "onTrack"
             }
@@ -250,7 +236,8 @@ ColumnLayout {
                 Layout.fillWidth: true
 
                 PlasmaComponents3.Label {
-                    text: Plasmoid.configuration.usageBarsShowUsed
+                    text: section.blocked ? i18n("Blocked by monthly quota")
+                          : Plasmoid.configuration.usageBarsShowUsed
                           ? Catalog.windowUsedText(section.modelData.win) + i18n("% used")
                           : Catalog.windowRemainingText(section.modelData.win) + i18n("% left")
                     opacity: 0.75
@@ -268,7 +255,7 @@ ColumnLayout {
 
             TruncatedLabel {
                 visible: text !== ""
-                text: Plasmoid.configuration.showPace
+                text: !section.blocked && Plasmoid.configuration.showPace
                     ? (Pace.text(section.modelData.pace, section.modelData.minutes > 0 && section.modelData.minutes <= 360, providerId)
                        || Catalog.paceLine(section.modelData.pace, section.modelData.win, section.modelData.minutes, plasmoidRoot.nowMs, providerId))
                     : ""
@@ -281,7 +268,7 @@ ColumnLayout {
             TruncatedLabel {
                 Layout.fillWidth: true
                 visible: text !== ""
-                text: section.modelData.minutes >= 10070 && section.modelData.minutes <= 10090 ? plasmoidRoot.sessionEstimate(providerId, entry) : ""
+                text: !section.blocked && section.modelData.minutes >= 10070 && section.modelData.minutes <= 10090 ? plasmoidRoot.sessionEstimate(providerId, entry) : ""
                 font: Kirigami.Theme.smallFont
                 opacity: 0.75
             }
