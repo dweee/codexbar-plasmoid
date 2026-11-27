@@ -40,15 +40,20 @@ ColumnLayout {
             readonly property var windows: Catalog.overviewWindows(usage, providerId)
             readonly property var monthlyBlocker: Catalog.monthlyBlocker(usage, providerId, overview.plasmoidRoot.nowMs)
 
+            readonly property int verticalInset: Math.ceil(Kirigami.Units.smallSpacing / 2)
+
             Layout.fillWidth: true
-            implicitHeight: rowContent.implicitHeight + Kirigami.Units.smallSpacing * 2
+            implicitHeight: rowContent.implicitHeight + verticalInset * 2
             radius: Kirigami.Units.cornerRadius
             color: rowMouse.containsMouse ? Qt.alpha(Kirigami.Theme.textColor, 0.07) : "transparent"
 
             RowLayout {
                 id: rowContent
                 anchors.fill: parent
-                anchors.margins: Kirigami.Units.smallSpacing
+                anchors.leftMargin: Kirigami.Units.smallSpacing
+                anchors.rightMargin: Kirigami.Units.smallSpacing
+                anchors.topMargin: overviewRow.verticalInset
+                anchors.bottomMargin: overviewRow.verticalInset
                 spacing: Kirigami.Units.smallSpacing * 2
 
                 ProviderIconImage {
@@ -59,7 +64,7 @@ ColumnLayout {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: Math.round(Kirigami.Units.smallSpacing / 2)
+                    spacing: Math.floor(Kirigami.Units.smallSpacing / 3)
 
                     RowLayout {
                         Layout.fillWidth: true
